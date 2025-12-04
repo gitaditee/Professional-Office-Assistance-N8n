@@ -1,0 +1,282 @@
+{
+  "name": "Gmail AI Replaier",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "b68c07f3-868e-4b80-8a4c-43f4cffbc9d4",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "C4zUAyvZKBVlvUhR",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "messageId": "={{ $json.id }}"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "2d7b914b-988b-44da-bdd1-2defb26f83a5",
+      "name": "Get a message",
+      "webhookId": "bd6aa844-6ba2-4c61-b40e-41d34dbc1075",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "C4zUAyvZKBVlvUhR",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a Professional Office Assistant AI responsible for reading and replying to workplace emails in a clear, polite, and professional manner.\n\nYour task is to analyze each incoming email and generate an appropriate response based on its intent.\n\nEmail types you must handle:\n1. Meeting Requests\n2. Follow-up Emails\n3. Leave Applications / Leave Approvals\n4. Status Updates\n5. Informational Emails\n\nInstructions:\n- Always maintain a professional, respectful, and corporate tone.\n- Keep responses concise, clear, and well-structured.\n- Use formal business English.\n- Include proper greeting and closing.\n- Do not sound robotic; keep it natural and human-like.\n\nDecision Logic:\n- If the email is a MEETING REQUEST:\n  - Confirm availability or politely request alternative time.\n  - Suggest suitable time slots if not specified.\n .\n\n- If the email is a LEAVE REQUEST:\n  - Approve or acknowledge based on context.\n  - Mention dates clearly.\n  - Wish well if leave is approved.\n\n- If the email is a FOLLOW-UP:\n  - Acknowledge the reminder.\n  - Provide an update or timeline if available.\n\n- If the email is INFORMATIONAL:\n  - Acknowledge receipt.\n  - Thank the sender.\n  - Confirm understanding if necessary.\n\nFormatting Rules:\n- Start with a greeting using sender's name if available.\n- End with a professional sign-off.\n\nLayout Rules:\n- Each section MUST appear on a new line.\n- Leave one blank line between paragraphs.\n- Never compress the email into a single sentence or single line.\n- Always preserve spacing and indentation for readability.\n\nBelow are the content of latest email I got.\nSubject:{{ $json.Subject }}\nBody:{{ $json.snippet }}\nyou have to do 2 things . write the mail in before format for reply and add label mention below.\nStructure:\n\nDear {{ $json.From }},\n\n[Write the response here in 2-4 sentences, separated into proper paragraphs.]\n\nIf the email requires action, clearly mention the next step.\n\nThank the sender politely.\n\nBest regards,  \nN8N  \nProfessional Office Assistant\n\nSignature Format:\nBest regards,\nN8N Professional Office Assistant\n\nlabel can be of below :\napprovals,\nmeetings,\ninformational\n Use the tools to get all these labels and there Id and mention both of them properties.\nAlways generate the best possible reply based on professionalism and workplace etiquette.\n",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        416,
+        0
+      ],
+      "id": "ab98ff5b-9822-4c9a-8d09-f4dd59c37c04",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-20b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        288,
+        208
+      ],
+      "id": "c78d50df-c1e9-4731-94f2-ee865e8e98d1",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "UqtEubT3xFxxuekW",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"label\":\"meetings\",\n  \"label_id\":\"meet_123\",\n  \"reply\":\"Hey , thanks for reaching out\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        672,
+        176
+      ],
+      "id": "dc0c2257-247e-4fea-88fa-1132a76cfbec",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "resource": "label",
+        "returnAll": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Return_All', ``, 'boolean') }}"
+      },
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.1,
+      "position": [
+        544,
+        208
+      ],
+      "id": "75bbe900-a4be-4b17-a0e8-add96269f2b1",
+      "name": "Get many labels in Gmail",
+      "webhookId": "25cb1bb3-8cd7-4505-823a-2c9e031ed4fd",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "C4zUAyvZKBVlvUhR",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "={{ $('AI Agent').item.json.output.subject }}",
+        "emailType": "html",
+        "message": "={{ $('AI Agent').item.json.output.reply }}",
+        "options": {
+          "threadId": "={{ $json.threadId }}",
+          "sendTo": "={{ $('Gmail Trigger').item.json.From }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        976,
+        0
+      ],
+      "id": "bc01f1b8-4684-44b7-9ff6-575fc55e8c34",
+      "name": "Create a draft",
+      "webhookId": "182c0681-4926-411c-84a4-23bbfa971d1a",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "IbHMMYaYSkqQv3K9",
+          "name": "Gmail account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "##  Professional Office Assistant\n**Step 1- getting a mail at hpadee01@gmail.com regarding\n                        1) meeting schuleded\n                        2) leave approval\n                        3) notifications/ informational mails\nStep2- ai agent will read the mail and send the reply accordingly.\n** ",
+        "height": 208,
+        "width": 528
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        880,
+        320
+      ],
+      "typeVersion": 1,
+      "id": "b5b55e0e-751f-48ed-90df-86bad01c3785",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Get a message').item.json.id }}",
+        "labelIds": "={{ $json.output.label_id }}"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        768,
+        0
+      ],
+      "id": "b291ec11-40ca-4818-ac1a-1ab11b8bdaa6",
+      "name": "Add label to message",
+      "webhookId": "654d6a43-1e5b-4125-878a-48b5ec0c9e55",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "C4zUAyvZKBVlvUhR",
+          "name": "Gmail account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a message": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Add label to message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many labels in Gmail": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a draft": {
+      "main": [
+        []
+      ]
+    },
+    "Add label to message": {
+      "main": [
+        [
+          {
+            "node": "Create a draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d2ce41b2-f7b6-4869-bed3-56f8c1c2cef5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "53eb0e82c095b64935ae27e286b2bdbdb823a8317e5e0c55e65ef50acd6b72d2"
+  },
+  "id": "jcrDtjv9SY45Lv5r",
+  "tags": []
+}
